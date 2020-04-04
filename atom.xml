@@ -2,12 +2,14 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://dingzhongfa.github.io</id>
     <title>Deep Learning</title>
-    <updated>2020-04-04T10:02:32.094Z</updated>
+    <updated>2020-04-04T10:18:24.249Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://dingzhongfa.github.io"/>
     <link rel="self" href="https://dingzhongfa.github.io/atom.xml"/>
     <subtitle>
-温故而知新</subtitle>
+&lt;font size=&quot;5&quot;&gt;温故而知新&lt;/font&gt; 
+&lt;br&gt;—————————————————&lt;/br&gt;
+&lt;font size=&quot;5&quot;&gt;Mr Ding&lt;/font&gt; </subtitle>
     <logo>https://dingzhongfa.github.io/images/avatar.png</logo>
     <icon>https://dingzhongfa.github.io/favicon.ico</icon>
     <rights>All rights reserved 2020, Deep Learning</rights>
