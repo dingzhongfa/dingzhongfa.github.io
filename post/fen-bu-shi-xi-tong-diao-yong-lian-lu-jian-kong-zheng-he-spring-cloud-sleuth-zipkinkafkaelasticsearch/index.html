@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>分布式系统调用链路监控 -（整合spring cloud sleuth 、zipkin、kafka、elasticsearch） | Deep Learning</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://dingzhongfa.github.io/favicon.ico?v=1589718576421">
+<link rel="stylesheet" href="https://dingzhongfa.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="在微服务架构体系中，随着业务扩张，模块之间调用日益错综复杂，一个请求流程可能涉及到十多个甚至数十个的服务。这对我们进行错误排查及性能分析产生了阻碍。
+分布式系统监控就是对每一次请求进行跟踪，进而明确每个请求所经过的应用、耗时等信息。本文我们..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://dingzhongfa.github.io">
+        <img src="https://dingzhongfa.github.io/images/avatar.png?v=1589718576421" class="site-logo">
+        <h1 class="site-title">Deep Learning</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      
+<font size="5">温故而知新</font> 
+<br>—————————————————</br>
+<font size="5">Mr Ding</font> 
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Mr Ding</a> | <a class="rss" href="https://dingzhongfa.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">分布式系统调用链路监控 -（整合spring cloud sleuth 、zipkin、kafka、elasticsearch）</h2>
+            <div class="post-date">2020-05-17</div>
+            
+            <div class="post-content" v-pre>
+              <p>在微服务架构体系中，随着业务扩张，模块之间调用日益错综复杂，一个请求流程可能涉及到十多个甚至数十个的服务。这对我们进行错误排查及性能分析产生了阻碍。</p>
+<p>分布式系统监控就是对每一次请求进行跟踪，进而明确每个请求所经过的应用、耗时等信息。本文我们整合spring cloud sleuth,zipkin,kafka,elasticsearch做简单的分布式监控架构搭建</p>
+<h2 id="软件安装">软件安装</h2>
+<p>我们先安装所需软件，这里为方便读者，简单罗列下各个软件的简单使用步骤</p>
+<h3 id="zookeeper">zookeeper</h3>
+<ol>
+<li>安装  点击链接<code>https://archive.apache.org/dist/zookeeper/</code>选取版本自行下载</li>
+<li>运行后台启动命令（直接单节点启动）</li>
+<li>进入bin目录，启动、停止、重启分和查看当前节点状态（包括集群中是何角色）分别执行：</li>
+</ol>
+<pre><code class="language-bash">./zkServer.sh start
+./zkServer.sh stop
+./zkServer.sh restart
+./zkServer.sh status
+</code></pre>
+<h3 id="kafka">kafka</h3>
+<ol>
+<li>安装 点击链接<code>http://kafka.apache.org/downloads</code>选取版本自行下载</li>
+<li>运行后台启动命令（直接单节点启动）</li>
+</ol>
+<pre><code class="language-bash">sudo bin/kafka-server-start.sh config/server.properties
+</code></pre>
+<h3 id="elasticsearch">elasticsearch</h3>
+<ol>
+<li>安装 点击链接<code>https://www.elastic.co/downloads/past-releases</code>选取版本自行下载</li>
+<li>运行后台启动命令（直接单节点启动）</li>
+<li>进入安装文件夹</li>
+</ol>
+<pre><code class="language-bash"> bin/elasticsearch &amp;
+</code></pre>
+<h2 id="服务搭建">服务搭建</h2>
+<p>在parent依赖管理项目中，我们先统一管理spring boot、spring cloud版本号及各个maven profile</p>
+<pre><code>&lt;parent&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+    &lt;version&gt;1.5.10.RELEASE&lt;/version&gt;
+&lt;/parent&gt;
+&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-cloud-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;Dalston.SR5&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<h3 id="zipkin-server">zipkin-server</h3>
+<p>我们先搭建zipkin应用程序模块,这里顺便说下其他方式的依赖和配置。值得注意的是，开源项目的版本变更会在使用上有很大区别，大家在切换版本时还需要自己多注意。</p>
+<p><strong>启动类</strong></p>
+<pre><code class="language-java">@SpringBootApplication
+@EnableZipkinStreamServer
+//@EnableZipkinServer          以http传输数据时使用该注解
+public class ZipkinServerApplication {
+
+    public static void main(String[] args) {
+        new SpringApplicationBuilder(ZipkinServerApplication.class).run(args);
+    }
+}
+</code></pre>
+<p><strong>zipkin相关依赖</strong></p>
+<pre><code>&lt;dependencies&gt;
+    &lt;!-- 直接以http传输 --&gt;
+    &lt;!--&lt;dependency&gt;
+        &lt;groupId&gt;io.zipkin.java&lt;/groupId&gt;
+        &lt;artifactId&gt;zipkin-server&lt;/artifactId&gt;
+        &lt;version&gt;2.7.4&lt;/version&gt;
+    &lt;/dependency&gt;--&gt;
+    &lt;!-- mq传输 --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-cloud-sleuth-stream&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+    &lt;!-- 使用rabbitmq传输 --&gt;
+    &lt;!--&lt;dependency&gt;
+        &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-cloud-starter-stream-rabbit&lt;/artifactId&gt;
+    &lt;/dependency&gt;--&gt;
+    &lt;!-- 使用kafka传输 --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework.cloud&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-cloud-starter-stream-kafka&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+    &lt;!-- zipkin ui 模块，这里我们选取2.7.4版本，可与2.2.2版本的server兼容 --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;io.zipkin.java&lt;/groupId&gt;
+        &lt;artifactId&gt;zipkin-autoconfigure-ui&lt;/artifactId&gt;
+        &lt;scope&gt;runtime&lt;/scope&gt;
+        &lt;version&gt;2.7.4&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;!-- 数据库配置 --&gt;
+    &lt;!--&lt;dependency&gt;
+        &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-boot-starter-jdbc&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;mysql&lt;/groupId&gt;
+        &lt;artifactId&gt;mysql-connector-java&lt;/artifactId&gt;
+    &lt;/dependency&gt;--&gt;
+    &lt;!-- 保存到数据库需要如下依赖 --&gt;
+    &lt;!-- 添加 spring-data-elasticsearch的依赖 --&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;io.zipkin.java&lt;/groupId&gt;
+        &lt;artifactId&gt;zipkin-autoconfigure-storage-elasticsearch-http&lt;/artifactId&gt;
+        &lt;optional&gt;true&lt;/optional&gt;
+        &lt;version&gt;2.2.2&lt;/version&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;
+</code></pre>
+<p><strong>基本配置项</strong></p>
+<pre><code class="language-yaml">server:
+  port: 9411
+spring:
+  application:
+    name: ding-zipkin
+    #spring boot数据源配置
+#  datasource:
+#    url: jdbc:mysql://127.0.0.1:3306/zipkin?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;useSSL=false
+#    username: root
+#    password: 123456
+#    driver-class-name: com.mysql.jdbc.Driver
+#    initialize: true
+#    continue-on-error: false
+#    type: com.alibaba.druid.pool.DruidDataSource
+  #rabbitmq配置
+#  rabbitmq:
+#    host: 127.0.0.1
+#    port: 5672
+#    username: ding
+#    password: ding
+#    virtual-host: /ding
+  sleuth:
+    annotation:
+      enabled: false #mq方式设置为false
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: 127.0.0.1:9092
+          zkNodes: 127.0.0.1:2181
+zipkin:
+  storage:
+    StorageComponent: elasticsearch
+    type: elasticsearch
+    elasticsearch:
+      hosts: 127.0.0.1:9200
+</code></pre>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://dingzhongfa.github.io/post/lei-jia-zai-ji-shuang-qin-wei-pai-er/">
+                  <h3 class="post-title">
+                    类加载及双亲委派模型（二）
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>
